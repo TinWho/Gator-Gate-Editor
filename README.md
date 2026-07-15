@@ -8,9 +8,8 @@ The project focuses on improving usability, media handling, typography, content 
 ## Current Features
 
 * Full TinyMCE editor enabled for bbPress.
-* Custom Visual/Text editor tab interface.
 * Advanced TinyMCE toolbar with additional formatting tools.
-* Font family and font size selection.
+* Re-enable Font family and font size selection.
 * Custom editor styling and content canvas.
 * Media dialog guidance and input restrictions.
 * Automatic bidirectional iframe ↔ WordPress [embed] placeholder conversion for safer database storage.
