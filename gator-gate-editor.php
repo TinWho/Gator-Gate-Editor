@@ -1,6 +1,6 @@
 /*
  * Plugin Name:       Gator-Gate Editor for bbPress
- * Description:         Forked/Modified version of the bbPress Visual Editor.
+ * Description:       A modular snippet-based enhancement of the bbPress Visual Editor.
  * Version:                 0.1.0 Alpha
  * License:                 GPL-2.0-or-later
  *
