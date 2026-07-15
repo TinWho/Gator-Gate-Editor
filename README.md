@@ -13,7 +13,7 @@ The project focuses on improving usability, media handling, typography, content 
 * Font family and font size selection.
 * Custom editor styling and content canvas.
 * Media dialog guidance and input restrictions.
-* Automatic iframe ↔ WordPress `[embed]` conversion.
+* Automatic bidirectional iframe ↔ WordPress [embed] placeholder conversion for safer database storage.
 * Video URL validation and embed processing.
 * Responsive video alignment system.
 * Image source validation and filtering.
@@ -31,6 +31,18 @@ The project focuses on improving usability, media handling, typography, content 
 * Reduce opportunities for malformed or unsafe embedded content.
 * Build a lightweight, modular editor that can evolve independently of bbPress core.
 * Serve as a foundation for future Gator-Gate modules.
+
+## Installation & Testing
+
+* This project is currently distributed as standalone PHP code snippets.
+* **Test all snippets in a sandbox or staging environment first.
+  Exercise caution when installing or removing snippets.
+  Database effects and site behaviour may vary depending on your configuration.**
+* Always back up your website and database before installing or modifying snippets.
+* The easiest installation method is to copy and paste the snippets
+  into a WordPress code snippet manager, such as **Fluent Snippets**.
+
+
 
 ## License
 
