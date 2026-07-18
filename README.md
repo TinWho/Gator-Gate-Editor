@@ -51,4 +51,4 @@ AI-generated and AI-assisted code is provided **AS IS** without warranty. Users 
 
 
 ## ☕ Voluntary Support
-tinfoilwho.com
+[tinfoilwho.com](https://tinfoilwho.com/mission-support/)
