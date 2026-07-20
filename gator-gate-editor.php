@@ -186,8 +186,36 @@ function ultralight_editor_bind_mirrored_tabs_via_jquery() {
                 var targetEditorId = $('.wp-editor-area').first().attr('id');
                 var activeEditorInstance = tinyMCE.get(targetEditorId);
                 if (activeEditorInstance && activeEditorInstance.isHidden()) {
-                    tinymce.execCommand('mceToggleEditor', false, targetEditorId);
+
+    tinymce.execCommand('mceToggleEditor', false, targetEditorId);
+
+    setTimeout(function(){
+
+        var body = activeEditorInstance.getBody();
+
+        if (body && body.innerHTML.indexOf('[embed') !== -1) {
+
+            body.innerHTML = body.innerHTML.replace(
+                /\[embed([^\]]*)\]\s*(https?:\/\/[^\s\[\]"'<]+)\s*\[\/embed\]/gi,
+                function(match, attributes, url) {
+
+                    var widthMatch = attributes.match(/width=["']?([0-9]+)/i);
+                    var heightMatch = attributes.match(/height=["']?([0-9]+)/i);
+
+                    var width = widthMatch ? widthMatch[1] : '560';
+                    var height = heightMatch ? heightMatch[1] : '314';
+
+                    return '<iframe src="' + url +
+                    '" width="' + width +
+                    '" height="' + height +
+                    '" frameborder="0" allowfullscreen="true"></iframe>';
                 }
+            );
+
+        }
+
+    },300);
+}
                 $('#bbp_custom_mirror_code_tab').css({'background': '#eaeaea', 'color': '#646970', 'border-bottom': 'none', 'font-weight': '400'});
                 $(this).css({'background': '#f0f0f1', 'color': '#1d2327', 'border-bottom': '1px solid #f0f0f1', 'font-weight': '600'});
             });
@@ -197,6 +225,18 @@ function ultralight_editor_bind_mirrored_tabs_via_jquery() {
                 var targetEditorId = $('.wp-editor-area').first().attr('id');
                 var activeEditorInstance = tinyMCE.get(targetEditorId);
                 if (activeEditorInstance && !activeEditorInstance.isHidden()) {
+                    var html = activeEditorInstance.getContent();
+
+html = html.replace(
+    /<iframe[^>]*src="([^"]+)"[^>]*width="(\d+)"[^>]*height="(\d+)"[^>]*><\/iframe>/gi,
+    function(match, src, width, height) {
+        return '[embed width="' + width + '" height="' + height + '"]' +
+               src +
+               '[/embed]';
+    }
+);
+
+activeEditorInstance.setContent(html);
                     activeEditorInstance.save();
                     tinymce.execCommand('mceToggleEditor', false, targetEditorId);
                     $('#' + targetEditorId).css({
@@ -773,3 +813,151 @@ function ultralight_editor_process_video_alignments_and_sizes( $content ) {
 }
 add_filter( 'bbp_get_reply_content', 'ultralight_editor_process_video_alignments_and_sizes', 12 );
 add_filter( 'bbp_get_topic_content', 'ultralight_editor_process_video_alignments_and_sizes', 12 );
+
+/* ==========================================================================
+   Module 11: Backend Form Edit Interceptor — Raw Embed Restorer + Live Refresh Bridge
+   ========================================================================== */
+
+/**
+ * Converts stored [embed] placeholders back into iframe previews
+ * when loading bbPress edit forms.
+ */
+function ultralight_editor_restore_embeds_inside_edit_form( $content ) {
+
+    if ( empty( $content ) || strpos( $content, '[embed' ) === false ) {
+        return $content;
+    }
+
+    return preg_replace_callback(
+        '/\[embed([^\]]*)\]\s*([^\s\[\]\"\'><]+)\s*\[\/embed\]/is',
+        function( $matches ) {
+
+            $attributes = $matches[1];
+            $src_url    = esc_url_raw( trim( strip_tags( $matches[2] ) ) );
+
+            preg_match(
+                '/width=["\']?([0-9]+)["\']?/i',
+                $attributes,
+                $w_match
+            );
+
+            preg_match(
+                '/height=["\']?([0-9]+)["\']?/i',
+                $attributes,
+                $h_match
+            );
+
+
+            $width  = ! empty( $w_match[1] ) ? intval( $w_match[1] ) : 560;
+            $height = ! empty( $h_match[1] ) ? intval( $h_match[1] ) : 314;
+
+
+            // Normalise YouTube URLs
+            if (
+                preg_match(
+                    '/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/i',
+                    $src_url,
+                    $yt_matches
+                )
+            ) {
+                $src_url = 'https://www.youtube.com/embed/' . $yt_matches[1];
+            }
+
+
+            // Normalise Dailymotion URLs
+            elseif (
+                preg_match(
+                    '/dailymotion\.com\/video\/([a-zA-Z0-9]+)/i',
+                    $src_url,
+                    $dm_matches
+                )
+            ) {
+                $src_url = 'https://www.dailymotion.com/embed/video/' . $dm_matches[1];
+            }
+
+
+            return '<iframe src="' . esc_url( $src_url ) . '" 
+                width="' . esc_attr( $width ) . '" 
+                height="' . esc_attr( $height ) . '" 
+                frameborder="0" 
+                allowfullscreen="true"></iframe>';
+
+        },
+        $content
+    );
+}
+
+
+// Existing edit form hooks
+add_filter(
+    'bbp_get_form_topic_content',
+    'ultralight_editor_restore_embeds_inside_edit_form',
+    99,
+    1
+);
+
+add_filter(
+    'bbp_get_form_reply_content',
+    'ultralight_editor_restore_embeds_inside_edit_form',
+    99,
+    1
+);
+
+
+
+/* ==========================================================================
+   Live TinyMCE Refresh Bridge
+   ========================================================================== */
+
+/**
+ * Exposes the same placeholder restoration engine to JavaScript.
+ * Allows Module 1.1 to rebuild previews after Visual/Text switching.
+ */
+function ultralight_editor_embed_refresh_bridge() {
+
+    if ( ! is_bbpress() ) {
+        return;
+    }
+
+    ?>
+    <script type="text/javascript">
+
+    window.GatorGateRestoreEmbeds = function(content) {
+
+        if (!content || content.indexOf('[embed') === -1) {
+            return content;
+        }
+
+
+        return content.replace(
+            /\[embed([^\]]*)\]\s*(https?:\/\/[^\s\[\]"'<]+)\s*\[\/embed\]/gi,
+            function(match, attributes, url) {
+
+
+                var widthMatch = attributes.match(/width=["']?([0-9]+)/i);
+                var heightMatch = attributes.match(/height=["']?([0-9]+)/i);
+
+
+                var width = widthMatch ? widthMatch[1] : '560';
+                var height = heightMatch ? heightMatch[1] : '314';
+
+
+                return '<iframe src="' + url +
+                    '" width="' + width +
+                    '" height="' + height +
+                    '" frameborder="0" allowfullscreen="true"></iframe>';
+
+            }
+        );
+
+    };
+
+    </script>
+    <?php
+}
+
+add_action(
+    'wp_footer',
+    'ultralight_editor_embed_refresh_bridge',
+    9999
+);
